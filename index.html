@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golf Challenge 18 v0.5</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef2ef;color:#17221d;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.app{max-width:500px;margin:auto;min-height:100vh;background:#fff}header{background:#163d2a;color:white;padding:18px}header h1{margin:0;font-size:22px}header small{opacity:.8}main{padding:16px}.screen{display:none}.screen.active{display:block}.hero{background:#e8f1eb;border-radius:18px;padding:18px;margin-bottom:12px}.card{border:1px solid #dce5df;border-radius:15px;padding:14px;margin-bottom:12px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.players{display:grid;grid-template-columns:1fr 1fr;gap:8px}.player{background:#f5f7f5;border-radius:11px;padding:10px}.winner{border:2px solid #d3aa2e;background:#fffbea}.muted{color:#68766e}.small{font-size:13px}select{font:inherit;background:#fff}input{width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:9px;margin:4px 0 8px}button{width:100%;padding:13px;border:0;border-radius:11px;background:#17633c;color:#fff;font-weight:700;font-size:15px;margin-top:8px}button.secondary{background:#e8eeea;color:#173b29}button.danger{background:#9b3026}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.scorebtn{background:#eef3ef;color:#173b29;border:1px solid #d5dfd8}.scorebtn.sel{background:#17633c;color:#fff}.pill{background:#e8f1eb;border-radius:99px;padding:5px 9px;font-size:12px}.stars{letter-spacing:2px}.challenge{font-size:25px;font-weight:800;margin:10px 0}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px;border-bottom:1px solid #edf0ee;text-align:left}.rank{font-weight:800}.nav{position:sticky;bottom:0;background:#fff;border-top:1px solid #ddd;padding:7px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.nav button{margin:0;padding:10px;font-size:12px}
+@media print{body{background:#fff}.app{max-width:none}.nav,button{display:none!important}.screen{display:none!important}.screen#summary{display:block!important}header{background:#fff;color:#111;border-bottom:1px solid #ccc}.hero,.card{box-shadow:none;break-inside:avoid}}
+.dice{font-size:64px;text-align:center;margin:10px}.dicebtn{font-size:17px;padding:16px}.tie{background:#fffbea;border:2px solid #d3aa2e;border-radius:15px;padding:14px;margin-top:10px}.tiebreak-active-v1211::before{content:"🎲  TIEBREAKER – TÄRNING KRÄVS  ·  Lägst tärningsresultat vinner hålet";
+position:fixed;left:0;right:0;top:0;z-index:2147483646;
+display:block!important;background:#fff3cd;color:#6b4f00;
+border-bottom:3px solid #d3aa2e;padding:10px 14px;text-align:center;
+font-weight:800;font-size:16px;box-sizing:border-box;pointer-events:none}
+</style><script>
+window.__v122ChallengeMap = {
+  chooser: 'function chooseChallenge(pi,next,actual){\n let [par,idx,dist]=holes[next],expected=Math.max(1,Math.round(hcp[pi]*1.2/18)+par),perf=Math.max(0,Math.min(100,50+15*(expected-actual)));\n let target=perf<30?1:perf<45?2:perf<60?3:perf<80?4:5;\n // Safe v0.11.4 engine tuning: HCP < 12 receives one harder level.\n // HCP < 6 receives a second step. All existing scoring/navigation remains intact.\n if(hcp[pi]<12)target++; if(hcp[pi]<6)target++;\n // Very long holes naturally favor distance/long-game challenges through the\n // existing distance weighting below; par-3 holes remain governed by the\n // existing par filter. Keep the rest of the proven engine untouched.\n /* v0.12.3: small contextual refinement of the existing engine */
+if(hcp[pi]>=24)target=Math.max(1,target-0.25);
+if(par===3)target=Math.max(1,target-0.15);
+if(par>=5 && dist>=450)target=Math.min(5,target+0.20);
+target=Math.min(5,target);\n let last=used[pi].length?challenges[used[pi][used[pi].length-1]][1]:"",r=refs[pi];\n let c=challenges.map((x,i)=>({x,i,s:100})).filter(o=>o.x[3].includes(String(par))&&!used[pi].includes(o.i)).map(o=>{\n   let [name,cat,diff]=o.x,s=o.s;
+   // v0.12.8: Challenge Momentum.
+   // The hole winner still receives the challenge. A player trailing in CP
+   // gets a modest boost toward 2–3 CP options; the current leader gets a
+   // modest reduction. This keeps the comeback possible without making it
+   // deterministic.
+   let currentCP=Number((challengePoints&&challengePoints[pi])||0);
+   let leaderCP=0;
+   if(Array.isArray(challengePoints))leaderCP=Math.max(0,...challengePoints.map(Number));
+   let cpGap=leaderCP-currentCP;
+   if(cpGap>=6 && diff>=2 && diff<=3)s+=8;
+   else if(cpGap>=3 && diff>=2 && diff<=3)s+=4;
+   else if(cpGap<=-6 && diff>=4)s-=5;
+   // v0.12.7: bounded Challenge Points balance.
+   // 2–3 CP is slightly favored so one hole win remains meaningful without
+   // making 4–5 CP challenges disappear when their difficulty fits.
+   if(diff>=2 && diff<=3)s+=5;
+   if(diff>=4 && diff>target)s-=4;\n   // v0.12.6: balance CP against difficulty/context.
+   // Higher CP is not automatically better; the existing target difficulty
+   // determines whether a high-value challenge is appropriate.
+   s+=diff===target?40:Math.abs(diff-target)===1?15:-25;
+   if(diff>=4 && diff>target)s-=18;
+   if(diff===5 && target<4)s-=28;
+   if(diff<=2 && target>=4)s-=6;
+   if(diff>target+1)s-=60;
+   // v0.12.5: stronger per-player category variation.
+   // The existing `last` state is used; no new game state is introduced.
+   s+=cat===last?-70:20;
+   // v0.12.4: modest par/length preference, preserving randomness.
+   const ct=String(cat||"").toLowerCase();
+   if(par===3 && ["putt","precision","wedge","järn"].some(k=>ct.includes(k)))s+=12;
+   if(par===3 && ["driver","risk"].some(k=>ct.includes(k)))s-=6;
+   if(par>=5 && dist>=450 && ["driver","hybrid","risk"].some(k=>ct.includes(k)))s+=14;
+   if(par>=5 && dist>=450 && ["putt","precision"].some(k=>ct.includes(k)))s-=3;
+   if(par===4 && ["precision","järn","wedge"].some(k=>ct.includes(k)))s+=4;\n   if(/hybrid|Hybrid/i.test(name)){if(r.hybrid<=0)s-=100;else if(par===5||dist>=360)s+=30;else if(dist<300)s-=80}\n   if(/driver/i.test(name)&&r.driver>0&&dist>=r.driver*.55)s+=10;if(/wedge|chip/i.test(name)&&dist<=r.wedge*1.8)s+=15;if(/putta|putt/i.test(name))s+=10;\n   return {...o,s}\n }).sort((a,b)=>b.s-a.s);\n if(!c.length)c=challenges.map((x,i)=>({x,i,s:1})).filter(o=>!used[pi].includes(o.i));\n let top=c.slice(0,5),tot=top.reduce((a,o)=>a+Math.max(1,o.s),0),roll=Math.random()*tot,pick=top[0];\n for(const o of top){roll-=Math.max(1,o.s);if(roll<=0){pick=o;break}} used[pi].push(pick.i);pending.challenge=pick.i;\n document.getElementById("chHoleInfo").textContent=`Hål ${next+1} · Par ${par} · ${dist} m · SI ${idx}`; document.getElementById("chTeeInfo").textContent=`${window.teeName||"Vald tee"} · ${window.courseName||"Vald bana"}`;document.getElementById("chPlayer").textContent=players[pi];document.getElementById("chName").textContent=pick.x[0];document.getElementById("chStars").textContent="★".repeat(pick.x[2])+"☆".repeat(5-pick.x[2]);document.getElementById("chDesc").textContent=pick.x[4];document.getElementById("chCat").textContent=pick.x[1];document.getElementById("chCP").textContent=`+${pick.x[2]} CP`;\n}',
+  length: 2250,
+  referencesChallenges: True,
+  referencesMathRandom: True,
+  referencesUsed: True,
+  referencesHcp: True,
+  referencesHoles: True
+};
+</script>
+
+<style id="tieTopIndicatorV1210">
+#tieTopIndicatorV1210{display:none !important;position:fixed;left:0;right:0;top:0;z-index:2147483647;
+background:#fff3cd;border-bottom:3px solid #d3aa2e;color:#6b4f00;
+padding:10px 14px;text-align:center;font-weight:800;font-size:16px}
+#tieTopIndicatorV1210 .sub{font-size:12px;font-weight:600;margin-top:2px}
+</style>
+<style id="liveStandingsV1212">
+#liveStandingsV1212{margin:8px 0 12px;padding:10px 12px;border:1px solid #ddd;border-radius:14px;background:#fff}
+#liveStandingsV1212 .title{font-weight:800;margin-bottom:6px}
+#liveStandingsV1212 .row{display:grid;grid-template-columns:1.4fr .7fr .8fr .8fr;gap:6px;padding:4px 0;border-top:1px solid #eee;font-size:13px}
+#liveStandingsV1212 .lead{font-weight:800}
+</style><style id="standingsButtonV1213">
+#openStandingsV1213{width:100%;margin:6px 0 10px;padding:11px 14px;border:0;border-radius:12px;font-weight:800;font-size:16px;cursor:pointer}
+#standingsModalV1213{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2147483640;align-items:center;justify-content:center}
+#standingsModalV1213 .panel{background:#fff;width:calc(100% - 32px);max-width:520px;max-height:85vh;overflow:auto;border-radius:18px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#standingsModalV1213 .close{float:right;border:0;background:none;font-size:24px;font-weight:800;cursor:pointer}
+</style><style id="standingsButtonV1214">
+#openStandingsV1214{display:block!important;width:100%!important;margin:8px 0 12px!important;padding:12px 14px!important;border:0!important;border-radius:12px!important;font-size:16px!important;font-weight:800!important;cursor:pointer!important}
+</style>
+<style id="standingsCompactV1215">
+#openStandingsV1214{
+ display:inline-flex!important;width:44px!important;height:44px!important;
+ min-width:44px!important;margin:0 0 0 6px!important;padding:0!important;
+ align-items:center!important;justify-content:center!important;
+ font-size:22px!important;line-height:1!important;border-radius:12px!important;
+ cursor:pointer!important;
+}
+#standingsModalV1213 .row{
+ display:grid;grid-template-columns:1.5fr .8fr 1fr;gap:8px;
+ padding:6px 0;border-top:1px solid #eee;
+}
+</style>
+
+<style id="uiFixV1216">
+#openStandingsV1214{
+  display:inline-flex!important;
+  width:48px!important;height:48px!important;min-width:48px!important;
+  max-width:48px!important;margin:0 0 0 6px!important;padding:0!important;
+  align-items:center!important;justify-content:center!important;
+  font-size:22px!important;line-height:1!important;border-radius:12px!important;
+}
+#liveStandingsV1212{display:none!important}
+#standingsModalV1213 .panel{width:calc(100% - 28px)!important;max-width:560px!important}
+#standingsModalV1213 .row{
+  display:grid!important;grid-template-columns:1.5fr .7fr 1fr!important;
+  gap:8px!important;padding:7px 0!important;border-top:1px solid #eee!important;
+}
+#standingsModalV1213 .row:first-child{border-top:0!important}
+#modalStandingsContentV1213 .lead{font-weight:800}
+@media (max-width:600px){
+  .bottom-nav,.nav,.tabs,.footer-nav{
+    display:flex!important;flex-wrap:nowrap!important;gap:8px!important;
+  }
+  .bottom-nav>* ,.nav>* ,.tabs>* ,.footer-nav>*{
+    flex:1 1 0!important;min-width:0!important;width:auto!important;
+    margin-left:0!important;margin-right:0!important;
+  }
+}
+</style>
+
+<style id="bottomNavV1216">
+body > footer, body > nav,
+footer, nav{
+  box-sizing:border-box;
+}
+footer button, nav button{
+  flex:1 1 0!important;min-width:0!important;
+}
+</style>
+<style id="standingsCloseV1218">
+#standingsModalV1213 .closeStandingsV1218{
+ position:absolute;top:10px;right:12px;width:42px;height:42px;
+ border:0;border-radius:50%;background:transparent;font-size:30px;
+ line-height:42px;font-weight:800;cursor:pointer;padding:0;
+}
+#standingsModalV1213 .panel{position:relative}
+</style>
+<style id="uiPolishV123">
+/* v0.12.24 visual polish — no game logic changes */
+.app header h1{letter-spacing:.1px}
+.app header small{display:block;margin-top:3px}
+.card{box-shadow:0 1px 3px rgba(0,0,0,.06)}
+button{min-height:44px}
+.scorebtn{min-height:46px!important}
+.hero h2{margin-top:6px}
+.muted{line-height:1.35}
+#holeInfo,#holeSI{line-height:1.35}
+#finishBtn{margin-top:10px}
+#standingsModalV1213 .panel{padding-top:48px}
+#standingsModalV1213 .row{align-items:center}
+@media(max-width:600px){
+  main{padding:12px}
+  .card{padding:12px;margin-bottom:10px}
+  .hero{padding:15px;margin-bottom:10px}
+  button{padding:10px 8px}
+}
+</style>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#163d2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+<div id="tieTopIndicatorV1210">
+ 🎲 TIEBREAKER – TÄRNING KRÄVS
+ <div class="sub">Lägst tärningsresultat vinner hålet</div>
+</div>
+<div class="app">
+<header><h1>⛳ Golf Challenge 18</h1><small>v0.11.6 · Smart challenge-val förberett</small></header>
+<main>
+
+<section id="setup" class="screen active">
+<div class="hero"><h2>Ny rond</h2><div class="muted">Demo-bana. I skarp version hämtas ban- och teedata automatiskt.</div></div>
+<div class="card"><h3>🌍 Välj bana</h3>
+<label>Land</label>
+<select id="country" onchange="populateCourses()" style="width:100%;padding:11px;border:1px solid #cbd8cf;border-radius:9px;margin:4px 0 10px">
+<option value="ES">🇪🇸 Spanien</option>
+</select>
+<label>Bana</label>
+<select id="course" onchange="populateTees()" style="width:100%;padding:11px;border:1px solid #cbd8cf;border-radius:9px;margin:4px 0 10px">
+<option value="chaparral">El Chaparral Golf Club</option>
+<option value="mijas-los-lagos">Mijas Golf – Los Lagos</option>
+<option value="calanova">Calanova Golf Club</option>
+</select>
+<label>Tee</label>
+<select id="tee" onchange="selectTee()" style="width:100%;padding:11px;border:1px solid #cbd8cf;border-radius:9px;margin:4px 0"></select>
+<div id="courseInfo" class="hero" style="margin-top:8px;padding:10px"></div>
+<p class="small muted">v0.11.1: tre spanska banor. Tee-listan laddas direkt från vald bana.</p></div>
+<div class="card"><h3>⛳ Tävlingsformat</h3>
+<select id="roundFormat" style="width:100%;padding:11px;border:1px solid #cbd8cf;border-radius:9px" onchange="updateRoundFormat()"></select>
+<p id="roundFormatInfo" class="small muted"></p></div>
+<div class="card"><h3>👥 Antal spelare</h3>
+<select id="playerCount" onchange="setPlayerCount()" style="width:100%;padding:11px;border:1px solid #cbd8cf;border-radius:9px">
+<option value="2">2 spelare</option><option value="3">3 spelare</option><option value="4" selected>4 spelare</option>
+</select></div>
+<div class="card"><h3>👥 Spelare</h3><div id="playerInputs"></div>
+<div class="small muted">Ange namn, handicap och referenslängder för varje deltagare.</div></div>
+<button onclick="startRound()">Starta rond</button>
+</section>
+
+<section id="play" class="screen">
+<div class="hero"><div class="row"><div><div class="muted">Hål <span id="holeNo"></span></div><h2 id="holeInfo"></h2><div id="holeSI" class="small muted"></div></div><span class="pill" id="teePill">Gul tee</span></div><div id="holeChallenge" class="small muted"></div></div>
+<div class="card"><h3>Score</h3><div id="scorePlayers" class="players"></div><div class="grid" id="scoreButtons"></div><button onclick="submitHole()">Registrera hålet</button></div>
+<div id="standingsModalV1213" role="dialog" aria-modal="true">
+ <div class="panel"><button class="closeStandingsV1218" type="button" aria-label="Stäng tävlingsställning" title="Stäng">×</button>
+  <button class="close" id="closeStandingsV1213" type="button" aria-label="Stäng">×</button>
+  <h2>🏆 Tävlingsställning</h2>
+  <div id="modalStandingsContentV1213"></div>
+ </div>
+</div>
+<div id="liveStandingsV1212">
+<div class="title">🏆 Ställning</div>
+<div class="row"><b>Spelare</b><b>Hål</b><b>CP</b><b>Vunna</b></div>
+<div id="liveStandingsRowsV1212"></div>
+</div>
+<div id="holeResult" class="card" style="display:none"></div>
+<div id="tieBreak" class="tie" style="display:none"></div>
+<button id="finishBtn" class="danger" style="display:none" onclick="finishRound()">🔴 Avsluta rond</button>
+</section>
+
+<section id="challenge" class="screen">
+<div class="hero"><div class="muted">UTMANING PÅ NÄSTA HÅL</div><h2 id="chHoleInfo"></h2><div id="chTeeInfo" class="small muted">Gul tee</div><h2 id="chPlayer"></h2><div id="chName" class="challenge"></div><div id="chStars" class="stars"></div></div>
+<div class="card"><p id="chDesc"></p><div class="card" style="background:#fffbea"><b>⚠️ Challenge-slaget räknas i hålets score.</b><div class="small muted">Att genomföra och att lyckas med utmaningen är två olika saker.</div></div><div class="row"><span id="chCat" class="pill"></span><b id="chCP"></b></div></div>
+<button onclick="recordChallenge(true)">✅ Klarade utmaningen</button><button class="secondary" onclick="recordChallenge(false)">❌ Misslyckades</button>
+</section>
+
+<section id="summary" class="screen">
+<div class="hero"><div class="muted">SLUTRESULTAT</div><h2 id="matchWinner"></h2><div id="winnerTotal"></div><div class="small muted">Individuell match: 50 % golf + 50 % Challenge Performance</div></div>
+<div class="card"><h3>🏆 Individuell match</h3><div id="matchTable"></div></div>
+<div class="card"><h3>⛳ Golfresultat</h3><div id="golfTable"></div></div>
+<div class="card"><h3>🎯 Challenge-resultat</h3><div id="challengeTable"></div></div>
+<button onclick="exportPDF()">📄 Spara resultat som PDF</button>
+<button class="secondary" onclick="show('saved');renderSaved()">💾 Visa sparade rundor</button>
+</section>
+
+<section id="saved" class="screen">
+<div class="hero"><h2>💾 Sparade rundor</h2><div class="muted">Resultat sparas lokalt på enheten.</div></div>
+<div class="card" id="savedList"></div>
+<button class="secondary" onclick="show('setup')">Ny rond</button>
+<button class="secondary" onclick="show('summary');renderSummary()">↩️ Tillbaka till summering</button></section>
+
+<section id="scorecard" class="screen">
+<div class="hero"><h2>Scorekort</h2></div><div class="card" id="scorecardBody"></div>
+</section>
+</main>
+<div class="nav"><button onclick="show('play')">Hål</button><button onclick="show('scorecard');renderScorecard()">Scorekort</button><button id="openStandingsV1214" type="button" aria-label="Tävlingsställning" title="Tävlingsställning" onclick="openStandingsV1216()">🏆</button><button onclick="show('saved');renderSaved()">Sparat</button></div>
+</div>
+
+<script>
+window.challengeEngineVersion='2.0-safe';
+const holes=[
+[4,7,362],[5,3,481],[4,11,334],[3,15,142],[4,1,391],[5,9,472],[4,13,351],[4,5,365],[3,17,128],
+[5,7,486],[4,2,398],[4,11,344],[3,15,151],[4,1,404],[5,9,501],[4,13,358],[3,17,137],[4,3,389]];
+const challengeLibraryV113=[{"type": "Driver", "text": "Slå minst 1 tee-shot med driver.", "points": 1, "difficulty": "easy"}, {"type": "Driver", "text": "Slå driver från tee och träffa fairway.", "points": 2, "difficulty": "medium"}, {"type": "Driver", "text": "Slå två slag med driver om banan tillåter.", "points": 3, "difficulty": "hard"}, {"type": "Driver", "text": "Använd driver på tee med kontrollerad sving.", "points": 1, "difficulty": "easy"}, {"type": "Driver", "text": "Använd driver på tee och slå nästa slag från fairway/semiruff.", "points": 2, "difficulty": "medium"}, {"type": "Driver", "text": "Slå driver och håll dig på rätt sida av fairway.", "points": 2, "difficulty": "medium"}, {"type": "Hybrid", "text": "Slå minst två slag med hybrid.", "points": 2, "difficulty": "medium"}, {"type": "Hybrid", "text": "Använd hybrid från tee eller fairway.", "points": 1, "difficulty": "easy"}, {"type": "Hybrid", "text": "Använd hybrid på ett par 4- eller par 5-hål.", "points": 2, "difficulty": "medium"}, {"type": "Hybrid", "text": "Använd hybrid på minst ett inspel.", "points": 3, "difficulty": "hard"}, {"type": "Hybrid", "text": "Slå två hybrid-slag innan green.", "points": 3, "difficulty": "hard"}, {"type": "Hybrid", "text": "Använd hybrid från tee.", "points": 1, "difficulty": "easy"}, {"type": "Järn", "text": "Slå minst två slag med järn.", "points": 1, "difficulty": "easy"}, {"type": "Järn", "text": "Använd järn från fairway.", "points": 1, "difficulty": "easy"}, {"type": "Järn", "text": "Använd samma järn på två slag.", "points": 2, "difficulty": "medium"}, {"type": "Järn", "text": "Slå ett inspel med järn från minst 100 m.", "points": 2, "difficulty": "medium"}, {"type": "Järn", "text": "Använd ett längre järn på ett slag.", "points": 2, "difficulty": "medium"}, {"type": "Järn", "text": "Slå minst tre slag med järn.", "points": 3, "difficulty": "hard"}, {"type": "Wedge", "text": "Slå minst ett wedge-slag från 80 m eller närmare.", "points": 1, "difficulty": "easy"}, {"type": "Wedge", "text": "Använd wedge på första inspel mot green.", "points": 1, "difficulty": "easy"}, {"type": "Wedge", "text": "Slå två wedge-slag.", "points": 2, "difficulty": "medium"}, {"type": "Wedge", "text": "Använd wedge från utanför green.", "points": 2, "difficulty": "medium"}, {"type": "Wedge", "text": "Försök nå green med första wedge-slaget.", "points": 3, "difficulty": "hard"}, {"type": "Wedge", "text": "Slå wedge och avsluta sedan med högst två puttar.", "points": 3, "difficulty": "hard"}, {"type": "Putt", "text": "Första putten ska vara från minst 5 meter.", "points": 1, "difficulty": "easy"}, {"type": "Putt", "text": "Putt med flaggan kvar i hålet.", "points": 1, "difficulty": "easy"}, {"type": "Putt", "text": "Försök göra en putt längre än 4 meter.", "points": 2, "difficulty": "medium"}, {"type": "Putt", "text": "Gör en enputt.", "points": 2, "difficulty": "medium"}, {"type": "Putt", "text": "Gör minst en putt med en hand.", "points": 3, "difficulty": "hard"}, {"type": "Putt", "text": "Putt med drivern.", "points": 3, "difficulty": "hard"}, {"type": "Special", "text": "Använd ingen driver.", "points": 1, "difficulty": "easy"}, {"type": "Special", "text": "Använd minst fyra olika klubbor.", "points": 2, "difficulty": "medium"}, {"type": "Special", "text": "Använd högst tre olika klubbor.", "points": 2, "difficulty": "medium"}, {"type": "Special", "text": "Använd samma klubba på två konsekutiva slag.", "points": 1, "difficulty": "easy"}, {"type": "Special", "text": "Slå första slaget med en annan klubba än normalt.", "points": 2, "difficulty": "medium"}, {"type": "Special", "text": "Spela hålet utan hybrid.", "points": 1, "difficulty": "easy"}, {"type": "Score", "text": "Gör par eller bättre.", "points": 3, "difficulty": "hard"}, {"type": "Score", "text": "Gör bogey eller bättre.", "points": 1, "difficulty": "easy"}, {"type": "Score", "text": "Undvik trippelbogey eller sämre.", "points": 1, "difficulty": "easy"}, {"type": "Score", "text": "Avsluta hålet på högst par + 1.", "points": 2, "difficulty": "medium"}, {"type": "Score", "text": "Spela första halvan utan straffslag.", "points": 2, "difficulty": "medium"}, {"type": "Score", "text": "Undvik treputt.", "points": 2, "difficulty": "medium"}, {"type": "Precision", "text": "Träffa fairway med första slaget.", "points": 2, "difficulty": "medium"}, {"type": "Precision", "text": "Första slaget ska landa på rätt sida av fairway.", "points": 2, "difficulty": "medium"}, {"type": "Precision", "text": "Inspel ska landa på green.", "points": 2, "difficulty": "medium"}, {"type": "Precision", "text": "Första putten ska stanna inom 1 meter.", "points": 1, "difficulty": "easy"}, {"type": "Precision", "text": "Lägg upp bollen inom en klubblängd från vald målpunkt.", "points": 2, "difficulty": "medium"}, {"type": "Precision", "text": "Undvik bunker på hela hålet.", "points": 1, "difficulty": "easy"}, {"type": "Risk", "text": "Ta en aggressiv linje på första slaget.", "points": 3, "difficulty": "hard"}, {"type": "Risk", "text": "Försök nå green ett slag tidigare än par.", "points": 4, "difficulty": "expert"}, {"type": "Risk", "text": "Använd en klubba som ger minst 20 m längre räckvidd än normalt.", "points": 3, "difficulty": "hard"}, {"type": "Risk", "text": "Slå över ett hinder i stället för att lägga upp.", "points": 3, "difficulty": "hard"}, {"type": "Risk", "text": "Spela minst ett slag från en ovanlig position.", "points": 2, "difficulty": "medium"}, {"type": "Risk", "text": "Välj den offensiva av två rimliga klubbor.", "points": 2, "difficulty": "medium"}, {"type": "Bonus", "text": "Gör birdie eller bättre.", "points": 5, "difficulty": "expert"}, {"type": "Bonus", "text": "Använd valfri klubba på minst två slag.", "points": 2, "difficulty": "medium"}, {"type": "Bonus", "text": "Använd en referensklubba på ett slag.", "points": 1, "difficulty": "easy"}, {"type": "Bonus", "text": "Spela hålet utan järn.", "points": 3, "difficulty": "hard"}, {"type": "Bonus", "text": "Undvik treputt på hålet.", "points": 2, "difficulty": "medium"}, {"type": "Bonus", "text": "Slå minst två slag med hybrid.", "points": 2, "difficulty": "medium"}]
+const challenges=[["Ingen driver från tee", "Tee", 1, ["4", "5"], "Du får inte använda driver från tee."], ["Slå ut med hybrid/FW", "Tee", 2, ["3", "4", "5"], "Första slaget ska slås med hybrid eller fairwaywood."], ["Slå ut med järn", "Tee", 2, ["3", "4", "5"], "Första slaget ska slås med järn."], ["Driver + fairway", "Tee", 3, ["4", "5"], "Slå driver och träffa fairway."], ["Driver med kontroll", "Tee", 2, ["4", "5"], "Använd driver med en kontrollerad sving."], ["Valfri klubba från tee", "Tee", 1, ["3", "4", "5"], "Välj själv en klubba från tee som du normalt inte använder."], ["Två hybridslag", "Hybrid", 2, ["4", "5"], "Använd hybrid på minst två slag under hålet."], ["Hybrid från fairway", "Hybrid", 2, ["4", "5"], "Slå minst ett slag med hybrid från fairway eller semiruff."], ["Hybrid från tee", "Hybrid", 1, ["4", "5"], "Använd hybrid på utslaget."], ["Hybrid på långt slag", "Hybrid", 3, ["4", "5"], "Använd hybrid på ett längre slag."], ["Hybrid på inspel", "Hybrid", 3, ["4", "5"], "Använd hybrid på minst ett inspel mot green."], ["Hybrid två gånger före green", "Hybrid", 3, ["5"], "Använd hybrid minst två gånger innan du når green."], ["Två järnslag", "Järn", 1, ["3", "4", "5"], "Använd järn på minst två slag."], ["Järn från fairway", "Järn", 1, ["4", "5"], "Använd järn på ett slag från fairway."], ["Samma järn två gånger", "Järn", 2, ["3", "4", "5"], "Använd samma järn på två olika slag."], ["Långt järn", "Järn", 3, ["4", "5"], "Använd ett längre järn på minst ett slag."], ["Järn på inspel", "Järn", 2, ["3", "4", "5"], "Använd järn på ett inspel mot green."], ["Tre järnslag", "Järn", 3, ["4", "5"], "Använd järn på minst tre slag."], ["Wedge från 80 m", "Wedge", 1, ["3", "4", "5"], "Slå minst ett wedge-slag från 80 meter eller närmare."], ["Wedge på inspel", "Wedge", 1, ["3", "4", "5"], "Använd wedge på ditt första inspel mot green."], ["Två wedgeslag", "Wedge", 2, ["4", "5"], "Slå minst två slag med wedge."], ["Wedge från ruff", "Wedge", 2, ["3", "4", "5"], "Använd wedge från ruff eller annan svår position."], ["Wedge till green", "Wedge", 3, ["3", "4", "5"], "Försök nå green med första wedge-slaget."], ["Wedge + tvåputt", "Wedge", 3, ["3", "4", "5"], "Använd wedge och avsluta sedan med högst två puttar."], ["Lång första putt", "Putt", 1, ["3", "4", "5"], "Första putten ska vara från minst 5 meter."], ["Flaggan kvar", "Putt", 1, ["3", "4", "5"], "Gör minst en putt med flaggan kvar i hålet."], ["Putt över 4 meter", "Putt", 2, ["3", "4", "5"], "Försök göra en putt längre än 4 meter."], ["Enputt", "Putt", 2, ["3", "4", "5"], "Gör minst en enputt."], ["Enhandspåputt", "Putt", 3, ["3", "4", "5"], "Gör minst en putt med en hand."], ["Driverputt", "Putt", 3, ["3", "4", "5"], "Putt med drivern."], ["Fyra olika klubbor", "Variation", 2, ["4", "5"], "Använd minst fyra olika klubbor."], ["Tre eller färre klubbor", "Variation", 2, ["3", "4", "5"], "Spela hålet med högst tre olika klubbor."], ["Samma klubba två slag", "Variation", 1, ["3", "4", "5"], "Använd samma klubba på två konsekutiva slag."], ["Ovanlig klubba", "Variation", 2, ["3", "4", "5"], "Använd en annan klubba än normalt på ett slag."], ["Referensklubba", "Variation", 1, ["3", "4", "5"], "Använd en av dina fem referensklubbor."], ["Valfri klubba två gånger", "Variation", 2, ["3", "4", "5"], "Välj själv en klubba och använd den minst två gånger."], ["Par eller bättre", "Score", 3, ["3", "4", "5"], "Spela hålet på par eller bättre."], ["Bogey eller bättre", "Score", 1, ["3", "4", "5"], "Spela hålet på bogey eller bättre."], ["Ingen trippelbogey", "Score", 1, ["3", "4", "5"], "Undvik trippelbogey eller sämre."], ["Par + 1", "Score", 2, ["3", "4", "5"], "Avsluta hålet på högst par + 1."], ["Inga straffslag", "Score", 2, ["3", "4", "5"], "Spela hålet utan straffslag."], ["Ingen treputt", "Score", 2, ["3", "4", "5"], "Undvik treputt."], ["Fairwayträff", "Precision", 2, ["4", "5"], "Träffa fairway med första slaget."], ["Rätt sida", "Precision", 2, ["4", "5"], "Första slaget ska hamna på rätt sida av fairway."], ["Green på inspel", "Precision", 2, ["3", "4", "5"], "Låt ett inspel landa på green."], ["Putten inom en meter", "Precision", 1, ["3", "4", "5"], "Första putten ska stanna inom en meter."], ["Nära målpunkt", "Precision", 2, ["3", "4", "5"], "Lägg upp bollen inom en klubblängd från målpunkt."], ["Undvik bunker", "Precision", 1, ["3", "4", "5"], "Undvik bunker under hela hålet."], ["Aggressiv linje", "Risk", 3, ["4", "5"], "Välj en offensiv linje på första slaget."], ["Tidigare green", "Risk", 4, ["4", "5"], "Försök nå green ett slag tidigare än par."], ["Längre klubba", "Risk", 3, ["4", "5"], "Välj en klubba som ger minst cirka 20 meter längre räckvidd."], ["Över hindret", "Risk", 3, ["3", "4", "5"], "Om möjligt: slå över ett hinder i stället för att lägga upp."], ["Ovanlig position", "Risk", 2, ["3", "4", "5"], "Spela minst ett slag från en ovanlig men spelbar position."], ["Offensivt klubbval", "Risk", 2, ["3", "4", "5"], "Välj det offensiva av två rimliga klubbval."], ["Birdie eller bättre", "Bonus", 5, ["3", "4", "5"], "Gör birdie eller bättre."], ["Två slag med valfri klubba", "Bonus", 2, ["3", "4", "5"], "Välj valfri klubba och använd den minst två gånger."], ["Perfekt wedge + putt", "Bonus", 4, ["3", "4", "5"], "Använd wedge på inspel och avsluta med högst två puttar."], ["Hybrid + fairway", "Bonus", 3, ["4", "5"], "Använd hybrid och träffa fairway med utslaget."], ["Järn + green", "Bonus", 3, ["3", "4", "5"], "Använd järn på inspel och träffa green."], ["Två referensklubbor", "Bonus", 2, ["3", "4", "5"], "Använd minst två av dina fem referensklubbor."]];
+const courseCatalog={
+ ES:[
+  {id:"chaparral",name:"El Chaparral Golf Club",region:"Mijas · Costa del Sol",source:"Golf course data",
+   tees:[
+    {name:"Gul tee",rating:70.2,slope:137,holes:[[4,7,319],[3,9,160],[5,1,464],[3,3,185],[4,15,314],[5,13,446],[5,11,451],[4,5,307],[4,17,315],[3,14,149],[5,6,435],[4,8,288],[5,12,435],[3,4,155],[4,16,275],[3,18,98],[5,2,444],[3,10,162]]},
+    {name:"Röd tee",rating:70.1,slope:126,holes:[[4,11,276],[3,7,92],[5,1,445],[3,5,157],[4,16,240],[5,13,416],[5,9,374],[4,4,234],[4,17,293],[3,12,119],[5,10,407],[4,3,242],[5,15,368],[3,6,113],[4,14,230],[3,18,78],[5,2,397],[3,8,113]]}
+   ]},
+  {id:"mijas-los-lagos",name:"Mijas Golf – Los Lagos",region:"Mijas · Costa del Sol",source:"Golf course data",
+   tees:[
+    {name:"Vit tee",rating:73.5,slope:125,holes:[[5,9,508],[3,17,162],[4,15,344],[4,7,390],[5,3,580],[4,1,423],[4,13,387],[3,5,220],[4,11,348],[4,2,418],[3,8,176],[4,10,370],[5,4,535],[4,6,361],[5,16,475],[3,18,150],[4,14,351],[4,12,338]]},
+    {name:"Gul tee",rating:72.6,slope:124,holes:[[5,9,499],[3,17,148],[4,15,323],[4,7,374],[5,3,536],[4,1,415],[4,13,379],[3,5,210],[4,11,341],[4,2,408],[3,8,160],[4,10,359],[5,4,520],[4,6,353],[5,16,466],[3,18,142],[4,14,342],[4,12,332]]},
+    {name:"Röd tee",rating:71.6,slope:120,holes:[[5,9,448],[3,17,94],[4,15,285],[4,7,311],[5,3,479],[4,1,334],[4,13,300],[3,5,139],[4,11,279],[4,2,331],[3,8,124],[4,10,300],[5,4,434],[4,6,257],[5,16,392],[3,18,81],[4,14,289],[4,12,276]]}
+   ]},
+  {id:"calanova",name:"Calanova Golf Club",region:"La Cala de Mijas · Costa del Sol",source:"RFEG / Calanova",
+   tees:[
+    {name:"Gul tee",rating:71.5,slope:136,holes:[[5,9,487],[4,5,350],[4,13,327],[4,11,311],[4,1,368],[3,7,163],[4,15,339],[3,17,146],[5,3,434],[5,6,455],[4,4,349],[4,18,251],[3,12,150],[5,2,528],[4,8,291],[4,10,374],[3,16,146],[4,14,304]]},
+    {name:"Röd tee",rating:72.1,slope:126,holes:[[5,9,434],[4,5,301],[4,13,276],[4,11,278],[4,1,320],[3,7,134],[4,15,292],[3,17,120],[5,3,355],[5,6,387],[4,4,286],[4,18,222],[3,12,123],[5,2,427],[4,8,264],[4,10,332],[3,16,111],[4,14,279]]}
+   ]}
+ ],
+ SE:[]
+};
+
+let selectedCourse=null,selectedTee=null;
+
+function populateCourses(){
+ const course=document.getElementById("course");
+ const country=document.getElementById("country").value;
+ const list=courseCatalog[country]||[];
+ course.innerHTML=list.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+ if(list.length){course.value=list[0].id;populateTees();}
+ else{selectedCourse=null;selectedTee=null;document.getElementById("tee").innerHTML='<option>Inga banor</option>';updateRoundFormat();}
+}
+function populateTees(){
+ const country=document.getElementById("country").value;
+ const courseId=document.getElementById("course").value;
+ const courses=courseCatalog[country]||[];
+ selectedCourse=courses.find(c=>c.id===courseId)||null;
+ const tee=document.getElementById("tee");
+ if(!selectedCourse){
+   tee.innerHTML='<option value="">Välj bana först</option>';
+   tee.disabled=true;selectedTee=null;
+ }else{
+   tee.disabled=false;
+   tee.innerHTML=selectedCourse.tees.map((t,i)=>`<option value="${i}">${t.name}</option>`).join("");
+   tee.value="0";
+   selectedTee=selectedCourse.tees[0]||null;
+ }
+ updateCourseInfo();
+ updateRoundFormat();
+}function selectTee(){
+ if(!selectedCourse)return;
+ const i=parseInt(document.getElementById("tee").value,10);
+ selectedTee=selectedCourse.tees[Number.isFinite(i)?i:0]||null;
+ updateCourseInfo();
+ updateRoundFormat();
+}function updateCourseInfo(){
+ const el=document.getElementById("courseInfo");
+ if(!el)return;
+ if(!selectedCourse||!selectedTee){el.innerHTML="<span class='muted'>Välj bana och tee.</span>";return;}
+ const total=selectedTee.holes.reduce((a,h)=>a+Number(h[2]||0),0);
+ const par=selectedTee.holes.reduce((a,h)=>a+Number(h[0]||0),0);
+ el.innerHTML=`<b>${selectedCourse.name}</b><br>${selectedTee.name} · Par ${par} · ${total} m · CR ${selectedTee.rating??"–"} · Slope ${selectedTee.slope??"–"}`;
+}
+function updateRoundFormat(){
+ const sel=document.getElementById("roundFormat");
+ if(!sel||!selectedTee)return;
+ const n=selectedTee.holes.length;
+ if(n===9){
+   sel.innerHTML='<option value="9hole">9 hål</option>';
+   sel.value="9hole";
+   document.getElementById("roundFormatInfo").textContent="9 hål · hål 1–9.";
+ }else{
+   const current=sel.value||"18";
+   sel.innerHTML='<option value="18">18 hål</option><option value="front9">Front 9</option><option value="back9">Back 9</option>';
+   sel.value=(current==="front9"||current==="back9"||current==="18")?current:"18";
+   const labels={18:"18 hål · hål 1–18.",front9:"Front 9 · hål 1–9.",back9:"Back 9 · hål 10–18."};
+   document.getElementById("roundFormatInfo").textContent=labels[sel.value];
+ }
+}
+function applyCourse(){
+ if(!selectedCourse||!selectedTee){alert("Välj bana och tee.");return false;}
+ window.courseName=selectedCourse.name;
+ window.teeName=selectedTee.name;
+ window.courseRating=selectedTee.rating;
+ window.slopeRating=selectedTee.slope;
+ holes.splice(0,holes.length,...selectedTee.holes);
+ return true;
+}
+
+
+function selectChallengeV113(playerIndex,holeIndex){
+ const h=holes[holeIndex]||[4,18,0];
+ const playerHcp=Number(hcp[playerIndex]||0);
+ const level=playerHcp<12?"high":(playerHcp<24?"normal":"base");
+ let pool=challengeLibraryV113.map((c,i)=>({c,i}));
+ if(level==="high")pool=pool.filter(x=>x.c.difficulty!=="easy");
+ if(h[0]===3){
+  const p=pool.filter(x=>["Putt","Precision","Järn","Wedge","Bonus"].includes(x.c.type));
+  if(p.length)pool=p;
+ }else if(Number(h[2])>=480){
+  const p=pool.filter(x=>["Driver","Hybrid","Järn","Risk","Precision","Bonus"].includes(x.c.type));
+  if(p.length)pool=p;
+ }
+ const previous=used[playerIndex]||[];
+ const fresh=pool.filter(x=>!previous.includes(x.i));
+ if(fresh.length)pool=fresh;
+ return pool[Math.floor(Math.random()*pool.length)];
+}
+let allPlayers=["Spelare 1","Spelare 2","Spelare 3","Spelare 4"],players=[...allPlayers],hcp=[32.5,18.2,12.4,24.7];
+let refs=[{driver:200,hybrid:165,iron:125,wedge:80},{driver:210,hybrid:175,iron:135,wedge:90},{driver:225,hybrid:190,iron:150,wedge:100},{driver:205,hybrid:170,iron:130,wedge:85}];
+let scores,cp,wins,given,done,success,used,hole,selected,pending,finished=false;
+
+function setPlayerCount(){
+ const n=+document.getElementById("playerCount").value;
+ players=allPlayers.slice(0,n);
+ hcp=[32.5,18.2,12.4,24.7].slice(0,n);
+ refs=refs.slice(0,n);
+ while(refs.length<n) refs.push({driver:200,hybrid:165,iron:125,wedge:80});
+ initInputs();
+}
+function initInputs(){
+ let x="";
+ players.forEach((p,i)=>x+=`<div class="card"><h3>Deltagare ${i+1}</h3>
+ <label>Namn</label><input id="name${i}" value="${p}" placeholder="Namn">
+ <label>HCP</label><input id="hcp${i}" type="number" step=".1" value="${hcp[i]}">
+ <div class="players">
+ <div><label>Driver m</label><input id="d${i}" value="${refs[i].driver}" type="number"></div>
+ <div><label>Hybrid/FW m</label><input id="hy${i}" value="${refs[i].hybrid}" type="number"></div>
+ <div><label>Järn m</label><input id="ir${i}" value="${refs[i].iron}" type="number"></div>
+ <div><label>Wedge m</label><input id="we${i}" value="${refs[i].wedge}" type="number"></div>
+ </div><div class="small muted">Referenslängder – inte begränsningar av vilka klubbor som får användas.</div></div>`);
+ document.getElementById("playerInputs").innerHTML=x;
+}
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active")}
+function startRound(){
+ const n=+document.getElementById("playerCount").value;
+ players=[];hcp=[];refs=[];
+ for(let i=0;i<n;i++){
+   players.push((document.getElementById("name"+i)?.value||"Spelare "+(i+1)).trim());
+   hcp.push(+document.getElementById("hcp"+i).value||0);
+   refs.push({
+     driver:+document.getElementById("d"+i).value||0,
+     hybrid:+document.getElementById("hy"+i).value||0,
+     iron:+document.getElementById("ir"+i).value||0,
+     wedge:+document.getElementById("we"+i).value||0
+   });
+ }
+ applyCourse();
+ const format=document.getElementById("roundFormat").value;
+ const source=selectedTee.holes;
+ if(format==="front9") holes.splice(0,holes.length,...source.slice(0,9));
+ else if(format==="back9") holes.splice(0,holes.length,...source.slice(9,18));
+ else holes.splice(0,holes.length,...source.slice(0,9+(format==="18"?9:0)));
+ scores=players.map(()=>[]);cp=players.map(()=>0);wins=players.map(()=>0);given=players.map(()=>0);
+ done=players.map(()=>0);success=players.map(()=>0);used=players.map(()=>[]);
+ hole=0;selected=players.map(()=>null);pending=null;finished=false;window.holeProcessing=false;
+ document.getElementById("holeResult").style.display="none";
+ document.getElementById("tieBreak").style.display="none"; document.body.classList.remove("tiebreak-active-v1211");
+ document.getElementById("tieTopIndicatorV1210").style.setProperty("display","none","important");
+ renderHole();show("play");
+}
+function renderHole(){
+ let [par,idx,dist]=holes[hole];const format=document.getElementById("roundFormat")?.value;const displayHole=(format==="back9"?hole+10:hole+1);document.getElementById("teePill").textContent=window.teeName||"Vald tee";document.getElementById("holeNo").textContent=displayHole;document.getElementById("holeInfo").textContent=`Par ${par} · ${dist} m`; document.getElementById("holeSI").textContent=`Stroke Index ${idx} · ${window.courseName||"Vald bana"}`;
+ document.getElementById("holeChallenge").textContent=pending?`${players[pending.player]} har challenge på detta hål.`:"";
+ document.getElementById("finishBtn").style.display=hole===holes.length-1&&!finished?"block":"none";
+ document.getElementById("scorePlayers").innerHTML=players.map((p,i)=>`<div class="player"><b>${p}</b><span>${selected[i]==null?"–":selected[i]+" slag"}</span></div>`).join("");
+ document.getElementById("scoreButtons").innerHTML=Array.from({length:9},(_,k)=>`<button class="scorebtn" onclick="pick(${k+2})">${k+2}</button>`).join("");
+}
+function pick(n){let i=selected.findIndex(x=>x===null);if(i<0)return;selected[i]=n;renderHole()}
+function courseH(h){return Math.round(h*1.2)}
+function strokeOnHole(ch,idx){let a=Array(18).fill(0);for(let k=0;k<ch;k++)a[k%18]++;return a[idx-1]||0}
+function submitHole(){
+ if(selected.length!==players.length || selected.some(x=>x===null)){alert(`Ange score för alla ${players.length} spelare.`);return}
+ let [par,idx]=holes[hole],net=selected.map((s,i)=>s-strokeOnHole(courseH(hcp[i]),idx));
+ let best=Math.min(...net),cand=net.map((n,i)=>n===best?i:-1).filter(i=>i>=0);
+ for(let i=0;i<players.length;i++)scores[i].push({gross:selected[i],net:net[i],hcp:strokeOnHole(courseH(hcp[i]),idx)});
+ document.getElementById("holeResult").style.display="block";
+ document.getElementById("holeResult").innerHTML=`<h3>⛳ Hål ${hole+1} – Par ${par}</h3><table><tr><th>Spelare</th><th>Slag</th><th>HCP-slag</th><th>Netto</th></tr>${players.map((p,i)=>`<tr><td>${p}</td><td>${selected[i]}</td><td>${strokeOnHole(courseH(hcp[i]),idx)}</td><td><b>${net[i]}</b></td></tr>`).join("")}</table>`;
+ if(cand.length>1){startTieBreak(cand);return}
+ finishHole(cand[0]);
+}
+function startTieBreak(candidates){
+ document.body.classList.add("tiebreak-active-v1211");
+ document.getElementById("tieTopIndicatorV1210").style.setProperty("display","block","important");
+ window.tieCandidates=candidates;window.tieRolls={};window.tieTurn=0;
+ document.getElementById("tieBreak").style.display="block";
+ document.getElementById("tieBreak").innerHTML=`<h3>🎲 Lika netto!</h3><div class="small muted">Lägst tärningsresultat vinner hålet.</div><div id="diceArea"></div>`;
+ renderDice();
+}
+function dieFace(n){return ["","⚀","⚁","⚂","⚃","⚄","⚅"][n]||"🎲"}
+function renderDice(){
+ const c=window.tieCandidates||[], turn=window.tieTurn||0, rolls=window.tieRolls||{};
+ const rollCards=c.map(i=>`<div class="player" style="text-align:center"><b>${players[i]}</b><div style="font-size:44px">${rolls[i]?dieFace(rolls[i]):"🎲"}</div><b>${rolls[i]??"Inte kastat"}</b></div>`).join("");
+ if(Object.keys(rolls).length===c.length){
+   let vals=c.map(i=>rolls[i]),low=Math.min(...vals),best=c.filter(i=>rolls[i]===low);
+   if(best.length>1){
+     window.tieCandidates=best;window.tieRolls={};window.tieTurn=0;
+     document.getElementById("diceArea").innerHTML=`<div class="players">${rollCards}</div><div class="card" style="margin-top:10px;background:#fffbea"><b>🎲 Lika igen mellan ${best.map(i=>players[i]).join(" och ")}.</b><p class="small muted">De kastar om. Tidigare kast visas ovan.</p></div><button class="dicebtn" onclick="renderDice()">Fortsätt till omkast</button>`;
+     return;
+   }
+   document.getElementById("diceArea").innerHTML=`<div class="players">${rollCards}</div><div class="hero" style="margin-top:10px"><h3>🏆 ${players[best[0]]} vinner tärningsavgörandet</h3><div class="small muted">Lägst tärning vinner.</div></div><button onclick="finishHole(${best[0]})">Fortsätt</button>`;
+   return;
+ }
+ const pi=c[turn];
+ document.getElementById("diceArea").innerHTML=`<div class="players">${rollCards}</div><div class="card" style="margin-top:10px"><h3>${players[pi]} kastar nu</h3><div class="small muted">Alla tidigare kast ligger kvar synliga.</div></div><button class="dicebtn" onclick="rollDie(${pi})">🎲 KASTA TÄRNING</button>`;
+}
+function rollDie(pi){
+ window.tieRolls[pi]=Math.floor(Math.random()*6)+1;
+ window.tieTurn++;
+ renderDice();
+}
+function finishHole(winner){
+ wins[winner]++;
+ document.getElementById("holeResult").innerHTML+=`<div class="hero" style="margin-top:10px"><h3>🏆 ${players[winner]} vann hålet</h3></div>`;
+ document.getElementById("tieBreak").style.display="none";
+ if(hole<holes.length-1){pending={player:winner,hole:hole+1};given[winner]++;chooseChallenge(winner,hole+1, scores[winner][hole].net);setTimeout(()=>show("challenge"),250)}
+ else{pending=null;document.getElementById("finishBtn").style.display="block";}
+}
+
+function smartChallengeChoiceV116(pi,next){
+ const h=holes[next]||[4,18,0];
+ const phcp=Number(hcp[pi]||0);
+ const difficulty=phcp<6?3:(phcp<12?2:(phcp<24?1:0));
+ const par=Number(h[0]||4),dist=Number(h[2]||0);
+ let pool=challengeLibraryV113.map((c,i)=>({c,i}));
+ if(difficulty>=2)pool=pool.filter(x=>x.c.difficulty!=="easy");
+ if(difficulty===3)pool=pool.filter(x=>x.c.difficulty!=="medium" || Math.random()<0.65);
+ const preferred=pool.filter(x=>{
+   if(par===3)return ["Putt","Precision","Wedge","Järn","Bonus"].includes(x.c.type);
+   if(par>=5 && dist>=480)return ["Driver","Hybrid","Risk","Precision","Bonus"].includes(x.c.type);
+   return true;
+ });
+ if(preferred.length)pool=preferred;
+ const prior=used[pi]||[];
+ const fresh=pool.filter(x=>!prior.includes(x.i));
+ if(fresh.length)pool=fresh;
+ return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* v0.11.8 – HCP-based challenge selection helper.
+   This function is intentionally isolated: the existing game flow remains unchanged. */
+function getHcpChallengePoolV118(playerIndex){
+  const h=Number(hcp[playerIndex]||0);
+  let minLevel=1,maxLevel=5;
+  if(h>=24){minLevel=1;maxLevel=2;}
+  else if(h>=12){minLevel=2;maxLevel=3;}
+  else {minLevel=3;maxLevel=5;}
+
+  const pool=[];
+  for(let i=0;i<challenges.length;i++){
+    const c=challenges[i];
+    // v0.11.7 challenge schema: [name, category, difficulty/CP, allowed pars, description]
+    const level=Number(c[2]||1);
+    if(level>=minLevel && level<=maxLevel) pool.push(i);
+  }
+  return pool.length?pool:Array.from({length:challenges.length},(_,i)=>i);
+}
+
+/* v0.11.9 – hole context layer.
+   HCP supplies the difficulty pool; par and length supply preference weights.
+   This remains isolated until explicitly wired into the proven chooser. */
+function scoreChallengeForHoleV119(challengeIndex,playerIndex,holeIndex){
+  const c=challenges[challengeIndex]||[];
+  const h=holes[holeIndex]||[4,18,0];
+  const type=String(c[1]||"").toLowerCase();
+  const par=Number(h[0]||4);
+  const dist=Number(h[2]||0);
+  let score=0;
+
+  if(par===3 && ["putt","precision","wedge","järn"].some(x=>type.includes(x))) score+=3;
+  if(par===4 && ["precision","järn","wedge","driver","hybrid"].some(x=>type.includes(x))) score+=1;
+  if(par>=5 && ["driver","hybrid","risk"].some(x=>type.includes(x))) score+=3;
+
+  if(dist<300 && ["putt","precision","wedge","järn"].some(x=>type.includes(x))) score+=2;
+  if(dist>=450 && ["driver","hybrid","risk"].some(x=>type.includes(x))) score+=3;
+  else if(dist>=380 && ["driver","hybrid","järn"].some(x=>type.includes(x))) score+=1;
+
+  return score;
+}
+
+function getContextChallengePoolV119(playerIndex,holeIndex){
+  const base=getHcpChallengePoolV118(playerIndex);
+  return base
+    .map(i=>({i,score:scoreChallengeForHoleV119(i,playerIndex,holeIndex)}))
+    .sort((a,b)=>b.score-a.score)
+    .map(x=>x.i);
+}
+
+/* v0.12.0 integration hook: suggestion only, no navigation/state changes. */
+function getSmartChallengeSuggestionV120(playerIndex,holeIndex){
+  const idx=pickWeightedChallengeV120(playerIndex,holeIndex);
+  return idx===null?null:challenges[idx];
+}
+
+/* v0.12.0 – weighted challenge picker.
+   The existing chooseChallenge() remains untouched.
+   A higher contextual score means higher probability, not certainty. */
+function pickWeightedChallengeV120(playerIndex,holeIndex){
+  try{
+    const ranked=getContextChallengePoolV119(playerIndex,holeIndex);
+    if(!ranked||!ranked.length)return null;
+
+    // Weight top-ranked challenges more heavily while preserving variety.
+    const top=ranked.slice(0,Math.min(12,ranked.length));
+    const weights=top.map((idx,pos)=>{
+      const base=Math.max(1,top.length-pos);
+      return base*base;
+    });
+    const total=weights.reduce((a,b)=>a+b,0);
+    let r=Math.random()*total;
+    for(let i=0;i<top.length;i++){
+      r-=weights[i];
+      if(r<=0)return top[i];
+    }
+    return top[top.length-1];
+  }catch(e){
+    return null;
+  }
+}
+function chooseChallenge(pi,next,actual){
+ let [par,idx,dist]=holes[next],expected=Math.max(1,Math.round(hcp[pi]*1.2/18)+par),perf=Math.max(0,Math.min(100,50+15*(expected-actual)));
+ let target=perf<30?1:perf<45?2:perf<60?3:perf<80?4:5;
+ // Safe v0.11.4 engine tuning: HCP < 12 receives one harder level.
+ // HCP < 6 receives a second step. All existing scoring/navigation remains intact.
+ if(hcp[pi]<12)target++; if(hcp[pi]<6)target++;
+ // Very long holes naturally favor distance/long-game challenges through the
+ // existing distance weighting below; par-3 holes remain governed by the
+ // existing par filter. Keep the rest of the proven engine untouched.
+ target=Math.min(5,target);
+ let last=used[pi].length?challenges[used[pi][used[pi].length-1]][1]:"",r=refs[pi];
+ let c=challenges.map((x,i)=>({x,i,s:100})).filter(o=>o.x[3].includes(String(par))&&!used[pi].includes(o.i)).map(o=>{
+   let [name,cat,diff]=o.x,s=o.s;
+   s+=diff===target?40:Math.abs(diff-target)===1?15:-25;if(diff>target+1)s-=60;s+=cat===last?-45:20;
+   if(/hybrid|Hybrid/i.test(name)){if(r.hybrid<=0)s-=100;else if(par===5||dist>=360)s+=30;else if(dist<300)s-=80}
+   if(/driver/i.test(name)&&r.driver>0&&dist>=r.driver*.55)s+=10;if(/wedge|chip/i.test(name)&&dist<=r.wedge*1.8)s+=15;if(/putta|putt/i.test(name))s+=10;
+   return {...o,s}
+ }).sort((a,b)=>b.s-a.s);
+ if(!c.length)c=challenges.map((x,i)=>({x,i,s:1})).filter(o=>!used[pi].includes(o.i));
+ let top=c.slice(0,5),tot=top.reduce((a,o)=>a+Math.max(1,o.s),0),roll=Math.random()*tot,pick=top[0];
+ for(const o of top){roll-=Math.max(1,o.s);if(roll<=0){pick=o;break}} used[pi].push(pick.i);pending.challenge=pick.i;
+ document.getElementById("chHoleInfo").textContent=`Hål ${next+1} · Par ${par} · ${dist} m · SI ${idx}`; document.getElementById("chTeeInfo").textContent=`${window.teeName||"Vald tee"} · ${window.courseName||"Vald bana"}`;document.getElementById("chPlayer").textContent=players[pi];document.getElementById("chName").textContent=pick.x[0];document.getElementById("chStars").textContent="★".repeat(pick.x[2])+"☆".repeat(5-pick.x[2]);document.getElementById("chDesc").textContent=pick.x[4];document.getElementById("chCat").textContent=pick.x[1];document.getElementById("chCP").textContent=`+${pick.x[2]} CP`;
+}
+function recordChallenge(ok){if(!pending)return;done[pending.player]++;const points=Number(challenges[pending.challenge][2])||0;if(ok){success[pending.player]++;cp[pending.player]+=points}else{cp[pending.player]=Math.max(0,cp[pending.player]-points)}if(hole<holes.length-1){hole++;selected=players.map(()=>null);pending=null;renderHole();show("play")}}
+function challengePerf(i){if(!done[i])return 0;let max=used[i].reduce((a,id)=>a+challenges[id][2],0),eff=max?cp[i]/max:0,conf=Math.min(1,Math.sqrt(done[i]/6));return 100*(.7*eff*conf+.3*eff)}
+function summaryRows(){
+ let r=players.map((p,i)=>({p,i,gross:scores[i].reduce((a,x)=>a+x.gross,0),net:scores[i].reduce((a,x)=>a+x.net,0),cp:cp[i],wins:wins[i],done:done[i],success:success[i],ch:challengePerf(i)}));
+ let mn=Math.min(...r.map(x=>x.net)),mx=Math.max(...r.map(x=>x.net)),mc=Math.min(...r.map(x=>x.ch)),xc=Math.max(...r.map(x=>x.ch)),norm=(v,a,b)=>b===a?100:100*(b-v)/(b-a);
+ r.forEach(x=>{x.g=norm(x.net,mn,mx);x.c=norm(x.ch,mc,xc);x.total=(x.g+x.c)/2});r.sort((a,b)=>b.total-a.total||a.net-b.net);return r;
+}
+function finishRound(){if(finished)return;const required=holes.length;if(scores.length!==players.length||scores.some(s=>s.length<required)){alert(`Alla ${required} hål måste vara registrerade.`);return}if(!confirm("Är du säker på att du vill avsluta ronden?"))return;finished=true;renderSummary();saveRound();show("summary")}
+function renderSummary(){
+ let r=summaryRows(),m=["🥇","🥈","🥉","4️⃣"];document.getElementById("matchWinner").textContent=`🏆 ${r[0].p} vinner matchen`;document.getElementById("winnerTotal").textContent=`${r[0].total.toFixed(1)} totalpoäng`;
+ document.getElementById("matchTable").innerHTML=r.map((x,n)=>`<div class="player ${n===0?'winner':''}" style="margin-bottom:8px"><div class="row"><b>${m[n]} ${x.p}</b><b>${x.total.toFixed(1)}</b></div><div class="small muted">Golf ${x.g.toFixed(1)} · Challenge ${x.c.toFixed(1)}</div></div>`).join("");
+ let g=[...r].sort((a,b)=>a.net-b.net);document.getElementById("golfTable").innerHTML=g.map((x,n)=>`<div class="row" style="margin:6px 0"><span>${m[n]} ${x.p}</span><span>${x.gross} brutto · <b>${x.net} netto</b> · ${x.wins} hål</span></div>`).join("");
+ let c=[...r].sort((a,b)=>b.cp-a.cp||b.ch-a.ch);document.getElementById("challengeTable").innerHTML=c.map((x,n)=>`<div class="row" style="margin:6px 0"><span>${m[n]} ${x.p}</span><span>${x.success}/${x.done} lyckade · <b>${x.cp} CP</b></span></div>`).join("");
+}
+function saveRound(){let r=summaryRows();let rec={id:Date.now(),date:new Date().toLocaleString("sv-SE"),course:window.courseName||"Vald bana",tee:window.teeName||"Vald tee",courseRating:window.courseRating||null,slopeRating:window.slopeRating||null,players:r.map(x=>({name:x.p,hcp:hcp[x.i],gross:x.gross,net:x.net,cp:x.cp,wins:x.wins,done:x.done,success:x.success,total:x.total}))};let a=JSON.parse(localStorage.getItem("golfChallengeRounds")||"[]");a.unshift(rec);localStorage.setItem("golfChallengeRounds",JSON.stringify(a.slice(0,50)))}
+function renderSaved(){let a=JSON.parse(localStorage.getItem("golfChallengeRounds")||"[]"),el=document.getElementById("savedList");if(!a.length){el.innerHTML="<p class='muted'>Inga sparade rundor.</p>";return}el.innerHTML=a.map(r=>`<div class="player" style="margin-bottom:8px"><div class="row"><b>${r.course}</b><span>${r.date}</span></div><div class="small muted">${r.players.map(p=>`${p.name}: ${p.net} netto · ${p.cp} CP`).join(" · ")}</div></div>`).join("")}
+function renderScorecard(){document.getElementById("scorecardBody").innerHTML=`<table><tr><th>Hål</th>${players.map(p=>`<th>${p}</th>`).join("")}</tr>${holes.map((h,k)=>`<tr><td>${k+1} (${h[0]})</td>${players.map((p,i)=>`<td>${scores?.[i]?.[k]?.gross??"–"}</td>`).join("")}</tr>`).join("")}</table>`}
+function exportPDF(){document.title="Golf Challenge 18 – Resultat";window.print();setTimeout(()=>document.title="Golf Challenge 18 v0.5",500)}
+document.addEventListener("DOMContentLoaded",()=>{populateCourses();initInputs();});
+</script><script id="liveStandingsLogicV1212">
+(function(){
+function renderLiveStandingsV1212(){
+ const el=document.getElementById("liveStandingsRowsV1212"); if(!el)return;
+ const ps=window.players||[], cp=window.challengePoints||[], w=window.wins||[];
+ if(!ps.length){el.innerHTML="";return;}
+ const maxCP=Math.max(0,...ps.map((_,i)=>Number(cp[i]||0)));
+ const maxW=Math.max(0,...ps.map((_,i)=>Number(w[i]||0)));
+ el.innerHTML=ps.map((p,i)=>{
+  const c=Number(cp[i]||0), wi=Number(w[i]||0);
+  const lead=(c===maxCP&&maxCP>0)||(wi===maxW&&maxW>0);
+  return '<div class="row '+(lead?'lead':'')+'"><span>'+p+'</span><span>'+((window.hole||0)+1)+'</span><span>⭐ '+c+'</span><span>🏆 '+wi+'</span></div>';
+ }).join("");
+}
+window.renderLiveStandingsV1212=renderLiveStandingsV1212;
+setInterval(renderLiveStandingsV1212,500);
+window.addEventListener("load",renderLiveStandingsV1212);
+})();
+</script><script id="standingsButtonLogicV1213">
+(function(){
+function refreshModal(){
+ const src=document.getElementById("liveStandingsRowsV1212");
+ const out=document.getElementById("modalStandingsContentV1213");
+ if(src&&out)out.innerHTML=src.innerHTML;
+}
+function open(){refreshModal();document.getElementById("standingsModalV1213").style.display="flex";}
+function close(){document.getElementById("standingsModalV1213").style.display="none";}
+document.getElementById("openStandingsV1213").addEventListener("click",open);
+document.getElementById("closeStandingsV1213").addEventListener("click",close);
+document.getElementById("standingsModalV1213").addEventListener("click",e=>{if(e.target.id==="standingsModalV1213")close();});
+})();
+</script>
+<script id="standingsLogicV1215">
+function openStandingsV1215(){
+ const modal=document.getElementById("standingsModalV1213");
+ const out=document.getElementById("modalStandingsContentV1213");
+ if(!modal||!out)return;
+ const ps=Array.isArray(players)?players:[];
+ const cp=Array.isArray(challengePoints)?challengePoints:[];
+ const w=Array.isArray(wins)?wins:[];
+ const h=(Number(hole)||0)+1;
+ if(!ps.length){
+   out.innerHTML='<p>Ingen tävlingsdata ännu.</p>';
+ }else{
+   const maxCP=Math.max(0,...ps.map((_,i)=>Number(cp[i]||0)));
+   const maxW=Math.max(0,...ps.map((_,i)=>Number(w[i]||0)));
+   out.innerHTML='<p><b>Hål '+h+'</b></p>'+
+     '<div class="row"><b>Spelare</b><b>CP</b><b>Vunna hål</b></div>'+
+     ps.map((p,i)=>{
+       const c=Number(cp[i]||0), wi=Number(w[i]||0);
+       const lead=(c===maxCP&&maxCP>0)||(wi===maxW&&maxW>0);
+       return '<div class="row '+(lead?'lead':'')+'"><span>'+p+'</span><span>⭐ '+c+'</span><span>🏆 '+wi+'</span></div>';
+     }).join("");
+ }
+ modal.style.display="flex";
+}
+</script>
+
+<script id="standingsDataFixV1216">
+function openStandingsV1216(){
+ const modal=document.getElementById("standingsModalV1213");
+ const out=document.getElementById("modalStandingsContentV1213");
+ if(!modal||!out)return;
+ const ps=(typeof players!=="undefined"&&Array.isArray(players))?players:[];
+ const points=(typeof cp!=="undefined"&&Array.isArray(cp))?cp:[];
+ const w=(typeof wins!=="undefined"&&Array.isArray(wins))?wins:[];
+ const currentHole=(typeof hole!=="undefined"?Number(hole)+1:"–");
+
+ if(!ps.length){
+   out.innerHTML="<p>Ingen spelare registrerad ännu.</p>";
+ }else{
+   const ranking=ps.map((p,i)=>({
+     p:p,
+     cp:Number(points[i]||0),
+     wins:Number(w[i]||0),
+     index:i
+   })).sort((a,b)=>b.cp-a.cp || b.wins-a.wins || a.index-b.index);
+
+   const medals=["🥇","🥈","🥉"];
+   const rows=ranking.map((r,pos)=>{
+     const medal=medals[pos]||String(pos+1);
+     const leader=pos===0;
+     return '<div class="row '+(leader?'lead':'')+
+       '"><span><b>'+medal+'</b> '+r.p+
+       '</span><span>⭐ '+r.cp+
+       '</span><span>🏆 '+r.wins+'</span></div>';
+   }).join("");
+
+   out.innerHTML='<p><b>Aktuellt hål: '+currentHole+'</b></p>'+
+     '<div class="row"><b>Plats / Spelare</b><b>CP</b><b>Vunna</b></div>'+rows;
+ }
+ modal.style.display="flex";
+}
+</script>
+<script id="standingsCloseLogicV1218">
+function closeStandingsV1218(){
+ const modal=document.getElementById("standingsModalV1213");
+ if(modal)modal.style.display="none";
+}
+document.addEventListener("click",function(e){
+ if(e.target && e.target.classList && e.target.classList.contains("closeStandingsV1218")){
+   closeStandingsV1218();
+ }
+});
+</script>
+<script id="challengeCPRiskV121">
+function applyChallengeCPResultV121(playerIndex, challengeValue, success){
+ const value=Math.max(0,Number(challengeValue)||0);
+ if(typeof cp==="undefined" || !Array.isArray(cp) || playerIndex<0 || playerIndex>=cp.length)return;
+ cp[playerIndex]=Number(cp[playerIndex]||0)+(success?value:-value);
+ if(cp[playerIndex]<0)cp[playerIndex]=0;
+}
+</script>
+
+<script id="roundFormatDisplayV1223">
+(function(){
+ const sel=document.getElementById("roundFormat");
+ if(!sel)return;
+ sel.addEventListener("change",function(){
+   const info=document.getElementById("roundFormatInfo");
+   if(!info)return;
+   const labels={18:"18 hål · hål 1–18.",front9:"Front 9 · hål 1–9.",back9:"Back 9 · hål 10–18.",9hole:"9 hål · hål 1–9."};
+   info.textContent=labels[this.value]||"";
+ });
+})();
+</script>
+
+<script id="progressPolishV124">
+(function(){
+  const oldRenderHole=window.renderHole;
+  if(typeof oldRenderHole!=="function") return;
+  window.renderHole=function(){
+    oldRenderHole.apply(this,arguments);
+    const el=document.getElementById("holeProgressV124");
+    if(el && Array.isArray(window.holes) && typeof window.hole==="number"){
+      el.textContent="Hål "+(window.hole+1)+" av "+window.holes.length;
+    }
+  };
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body></html>
