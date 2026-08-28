@@ -484,6 +484,10 @@ function finishHole(winner){
  wins[winner]++;
  document.getElementById("holeResult").innerHTML+=`<div class="hero" style="margin-top:10px"><h3>🏆 ${players[winner]} vann hålet</h3></div>`;
  document.getElementById("tieBreak").style.display="none";
+ document.getElementById("tieBreak").innerHTML="";
+ document.body.classList.remove("tiebreak-active-v1211");
+ document.getElementById("tieTopIndicatorV1210").style.setProperty("display","none","important");
+ window.tieCandidates=[]; window.tieRolls={}; window.tieTurn=0;
  if(hole<holes.length-1){pending={player:winner,hole:hole+1};given[winner]++;chooseChallenge(winner,hole+1, scores[winner][hole].net);setTimeout(()=>show("challenge"),250)}
  else{pending=null;document.getElementById("finishBtn").style.display="block";}
 }
