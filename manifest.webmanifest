@@ -1,7 +1,7 @@
 {
   "name": "Golf Challenge 18",
   "short_name": "Golf Challenge",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=0.13.4",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#163d2a",
